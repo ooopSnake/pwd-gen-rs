@@ -1,5 +1,3 @@
-extern crate passwords;
-
 use std::fmt::Formatter;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
