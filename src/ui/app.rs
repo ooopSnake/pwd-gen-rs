@@ -239,11 +239,11 @@ impl iced::Application for App {
         let cols = iced::Column::new()
             .spacing(5)
             .align_items(iced::Align::Center)
-            .push(line1)
-            .push(line2)
-            .push(line3)
-            .push(line4)
-            .push(line5);
+            .push(line1.height(iced::Length::Units(30)))
+            .push(line2.height(iced::Length::Units(30)))
+            .push(line3.height(iced::Length::Units(30)))
+            .push(line4.height(iced::Length::Units(30)))
+            .push(line5.height(iced::Length::Units(50)));
 
         iced::Container::new(cols)
             .padding(10)
