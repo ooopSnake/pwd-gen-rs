@@ -46,6 +46,7 @@ pub struct App {
     btn_roll_state: iced::button::State,
     current_selected: Option<PasswordLevel>,
     current_suggestions: Option<String>,
+    pwd_score: Option<String>,
     pwd_len: Option<u32>,
 }
 
@@ -67,6 +68,23 @@ impl App {
             .unwrap();
         pwd_generator.generate_one().unwrap_or_default()
     }
+
+    fn update_suggestion_password(&mut self) {
+        self.current_suggestions = Some(self.generate_pwd());
+    }
+
+    fn update_password_score(&mut self) {
+        let cur_pwd = self.current_suggestions.clone().unwrap_or_default();
+        if cur_pwd.is_empty() {
+            return;
+        }
+        let ap = passwords::analyzer::analyze(&cur_pwd);
+        let is_comm_pwd = ap.is_common();
+        let score = passwords::scorer::score(&ap);
+        self.pwd_score = Some(format!("强度:{}, 常见:{}",
+                                      score as u32,
+                                      if is_comm_pwd { "是" } else { "否" }))
+    }
 }
 
 impl iced::Application for App {
@@ -76,7 +94,8 @@ impl iced::Application for App {
 
     fn new(_flags: ()) -> (Self, iced::Command<Self::Message>) {
         let mut o = Self::default();
-        o.current_suggestions = Some(o.generate_pwd());
+        o.update_suggestion_password();
+        o.update_password_score();
         (o, iced::Command::none())
     }
 
@@ -90,18 +109,21 @@ impl iced::Application for App {
         match message {
             AppMsg::PickChanged(v) => {
                 self.current_selected = Some(v);
-                self.current_suggestions = Some(self.generate_pwd())
+                self.update_suggestion_password();
+                self.update_password_score()
             }
             AppMsg::SuggestionChanged(s) => {
-                self.current_suggestions = Some(s)
-                // todo detect complex
+                self.current_suggestions = Some(s);
+                self.update_password_score()
             }
             AppMsg::PwdLenChanged(pwd_len) => {
                 self.pwd_len = Some(pwd_len);
-                self.current_suggestions = Some(self.generate_pwd())
+                self.update_suggestion_password();
+                self.update_password_score()
             }
             AppMsg::Roll => {
-                self.current_suggestions = Some(self.generate_pwd())
+                self.update_suggestion_password();
+                self.update_password_score()
             }
             AppMsg::Copy2Clipboard => {
                 if let Some(s) = &self.current_suggestions {
@@ -175,7 +197,17 @@ impl iced::Application for App {
                         format!("{}", self.pwd_len.unwrap_or(12u32))))
             );
 
+
         let line4 = iced::Row::new()
+            .width(iced::Length::Fill)
+            .align_items(iced::Align::Center)
+            .spacing(5)
+            .push(iced::Text::new("评分"))
+            .push(spacer(10))
+            .push(iced::Text::new(
+                self.pwd_score.clone().unwrap_or_default()));
+
+        let line5 = iced::Row::new()
             .padding(10)
             .align_items(iced::Align::Center)
             .width(iced::Length::Fill)
@@ -210,7 +242,8 @@ impl iced::Application for App {
             .push(line1)
             .push(line2)
             .push(line3)
-            .push(line4);
+            .push(line4)
+            .push(line5);
 
         iced::Container::new(cols)
             .padding(10)
