@@ -1,41 +1,85 @@
-use iced::Element;
+extern crate passwords;
+
+use std::fmt::Formatter;
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct PasswordLevel(usize, &'static str);
+
+impl Into<String> for PasswordLevel {
+    fn into(self) -> String {
+        self.1.into()
+    }
+}
+
+impl std::fmt::Display for PasswordLevel {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.1)
+    }
+}
+
+impl PasswordLevel {
+    fn get_pwd_generator(&self, expect_len: usize) -> passwords::PasswordGenerator {
+        passwords::PasswordGenerator {
+            length: expect_len,
+            numbers: true,
+            lowercase_letters: self.0 != 1,
+            uppercase_letters: self.0 != 1,
+            symbols: self.0 == 0,
+            spaces: false,
+            exclude_similar_characters: false,
+            strict: false,
+        }
+    }
+}
+
+const OPTIONS: [PasswordLevel; 3] = [
+    PasswordLevel(0, "随机生成"),
+    PasswordLevel(1, "纯数字"),
+    PasswordLevel(2, "字母与数字")
+];
+
 
 #[derive(Default)]
 pub struct App {
-    pick_state: iced::pick_list::State<&'static str>,
+    pick_state: iced::pick_list::State<PasswordLevel>,
     suggest_state: iced::text_input::State,
     slide_state: iced::slider::State,
     btn_copy_state: iced::button::State,
     btn_roll_state: iced::button::State,
-    current_selected: Option<&'static str>,
+    current_selected: Option<PasswordLevel>,
     current_suggestions: Option<String>,
     pwd_len: Option<u32>,
 }
 
 #[derive(Debug, Clone)]
-pub enum Msg {
-    PickChanged(&'static str),
+pub enum AppMsg {
+    PickChanged(PasswordLevel),
     SuggestionChanged(String),
     PwdLenChanged(u32),
     Roll,
     Copy2Clipboard,
 }
 
-const OPTIONS: [&'static str; 3] = ["随机生成", "纯数字", "字母与数字"];
-
 impl App {
-    fn current_selected(&self) -> Option<&'static str> {
-        self.current_selected.or_else(|| Some(OPTIONS[0]))
+    fn generate_pwd(&self) -> String {
+        let pwd_len = self.pwd_len.unwrap_or(12u32) as usize;
+        let pwd_generator = self.current_selected.as_ref()
+            .or_else(|| Some(&OPTIONS[0]))
+            .map(|it| it.get_pwd_generator(pwd_len))
+            .unwrap();
+        pwd_generator.generate_one().unwrap_or_default()
     }
 }
 
 impl iced::Application for App {
     type Executor = iced::executor::Default;
-    type Message = Msg;
+    type Message = AppMsg;
     type Flags = ();
 
     fn new(_flags: ()) -> (Self, iced::Command<Self::Message>) {
-        (Self::default(), iced::Command::none())
+        let mut o = Self::default();
+        o.current_suggestions = Some(o.generate_pwd());
+        (o, iced::Command::none())
     }
 
     fn title(&self) -> String {
@@ -46,17 +90,22 @@ impl iced::Application for App {
               -> iced::Command<Self::Message> {
         println!("{:?}", message);
         match message {
-            Msg::PickChanged(v) => {
-                self.current_selected = Some(v)
+            AppMsg::PickChanged(v) => {
+                self.current_selected = Some(v);
+                self.current_suggestions = Some(self.generate_pwd())
             }
-            Msg::SuggestionChanged(s) => {
+            AppMsg::SuggestionChanged(s) => {
                 self.current_suggestions = Some(s)
+                // todo detect complex
             }
-            Msg::PwdLenChanged(pwd_len) => {
-                self.pwd_len = Some(pwd_len)
+            AppMsg::PwdLenChanged(pwd_len) => {
+                self.pwd_len = Some(pwd_len);
+                self.current_suggestions = Some(self.generate_pwd())
             }
-            Msg::Roll => {}
-            Msg::Copy2Clipboard => {
+            AppMsg::Roll => {
+                self.current_suggestions = Some(self.generate_pwd())
+            }
+            AppMsg::Copy2Clipboard => {
                 if let Some(s) = &self.current_suggestions {
                     clipboard.write(s.clone())
                 }
@@ -65,7 +114,7 @@ impl iced::Application for App {
         iced::Command::none()
     }
 
-    fn view(&mut self) -> Element<'_, Self::Message> {
+    fn view(&mut self) -> iced::Element<'_, Self::Message> {
         let spacer = |n| iced::Space::new(
             iced::Length::Units(n),
             iced::Length::Units(0));
@@ -77,12 +126,14 @@ impl iced::Application for App {
             .push(iced::Text::new("类型"))
             .push(spacer(10))
             .push({
-                let cur_opt = self.current_selected();
+                let cur_opt =
+                    self.current_selected
+                        .or_else(|| Some(OPTIONS[0].clone()));
                 iced::PickList::new(&mut self.pick_state,
                                     &OPTIONS[..],
                                     cur_opt,
                                     |it| {
-                                        Msg::PickChanged(it)
+                                        AppMsg::PickChanged(it)
                                     })
                     .width(iced::Length::Fill)
             })
@@ -99,7 +150,7 @@ impl iced::Application for App {
                 &mut self.suggest_state,
                 "",
                 &suggestions,
-                Msg::SuggestionChanged)
+                AppMsg::SuggestionChanged)
                 .padding(3)
                 .width(iced::Length::Fill)
                 .size(26))
@@ -118,23 +169,25 @@ impl iced::Application for App {
                         iced::Slider::new(&mut self.slide_state,
                                           8u32..=16u32,
                                           self.pwd_len.unwrap_or(12u32),
-                                          |v| Msg::PwdLenChanged(v))
+                                          |v| AppMsg::PwdLenChanged(v))
                             .width(iced::Length::Fill)
                     })
                     .push(spacer(5))
-                    .push(iced::Text::new(format!("{}", self.pwd_len.unwrap_or(8))))
+                    .push(iced::Text::new(
+                        format!("{}", self.pwd_len.unwrap_or(12u32))))
             );
 
         let line4 = iced::Row::new()
+            .padding(10)
             .align_items(iced::Align::Center)
             .width(iced::Length::Fill)
             .push({
                 let btn = iced::Button::new(&mut self.btn_copy_state
-                                            , iced::Text::new("Copy")
+                                            , iced::Text::new("拷贝密码")
                                                 .width(iced::Length::Units(80))
                                                 .horizontal_alignment(
                                                     iced::HorizontalAlignment::Center))
-                    .on_press(Msg::Copy2Clipboard);
+                    .on_press(AppMsg::Copy2Clipboard);
                 iced::Container::new(btn)
                     .width(iced::Length::Fill)
                     .center_x()
@@ -142,11 +195,11 @@ impl iced::Application for App {
             })
             .push({
                 let btn = iced::Button::new(&mut self.btn_roll_state
-                                            , iced::Text::new("Roll")
+                                            , iced::Text::new("再来一次")
                                                 .width(iced::Length::Units(80))
                                                 .horizontal_alignment(
                                                     iced::HorizontalAlignment::Center))
-                    .on_press(Msg::Roll);
+                    .on_press(AppMsg::Roll);
                 iced::Container::new(btn)
                     .width(iced::Length::Fill)
                     .center_x()

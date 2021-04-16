@@ -7,3 +7,4 @@ edition = "2018"
 
 [dependencies]
 iced = "0.3"
+passwords = { version = "3.1.4", features = ["common-password"] }
