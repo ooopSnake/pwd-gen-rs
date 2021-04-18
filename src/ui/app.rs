@@ -116,7 +116,7 @@ impl iced::Application for App {
                 self.current_suggestions = Some(s);
                 self.update_password_score()
             }
-            AppMsg::PwdLenChanged(pwd_len) => {
+            AppMsg::PwdLenChanged(pwd_len) if self.pwd_len.unwrap_or_default() != pwd_len => {
                 self.pwd_len = Some(pwd_len);
                 self.update_suggestion_password();
                 self.update_password_score()
@@ -130,6 +130,7 @@ impl iced::Application for App {
                     clipboard.write(s.clone())
                 }
             }
+            _ => {}
         }
         iced::Command::none()
     }
