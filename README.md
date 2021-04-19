@@ -7,6 +7,6 @@
 | lang| rust|
 | gui-framework | iced|
 
-### App snapshot
+### Screenshot
 
 ![img](doc/res/img.png)
