@@ -1,3 +1,4 @@
+#![feature(cell_leak)]
 #![windows_subsystem = "windows"]
 
 use iced::Application;
@@ -12,5 +13,5 @@ fn main() {
         include_bytes!("../icon.rgba")[..].into(),
         94u32, 127u32).unwrap());
     settings.default_font = Some(include_bytes!("../fonts/pingfang.ttf"));
-    ui::App::run(settings).unwrap();
+    ui::main_window::Form::run(settings).unwrap();
 }

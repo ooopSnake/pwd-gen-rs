@@ -1,3 +1,5 @@
-mod app;
+pub use kit::*;
 
-pub use app::*;
+pub mod main_window;
+pub mod kit;
+
