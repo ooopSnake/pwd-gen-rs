@@ -1,10 +1,12 @@
-## password generator
+## Password Generator
 
-> inspired by apple's keychain, written by Rust
+> inspired by Apple's keychain, 100% Rust
 
 | cat |  details |
 |:--- | :---: |
 | lang| rust|
 | gui-framework | iced|
 
+### App snapshot
 
+![img](doc/res/img.png)
