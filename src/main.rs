@@ -9,7 +9,7 @@ fn main() {
     settings.window.size = (300, 220);
     settings.window.resizable = false;
     settings.window.icon = iced::window::Icon::from_rgba(
-        include_bytes!("../res/icon.rgba")[..].into(),
+        include_bytes!("../res/AppIcon.rgba")[..].into(),
         94u32,
         127u32)
         .ok();
